@@ -29,6 +29,7 @@ pub struct RelayClient {
 }
 
 impl RelayClient {
+    // Does not start the reader, only makes the websocket connection
     pub fn new(
         url: Url,
         chain_id: u64,
