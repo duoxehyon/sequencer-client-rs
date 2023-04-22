@@ -1,4 +1,4 @@
-# Sequencer-Client-rs
+# Sequencer-Client
 Pure Rust implementation of Arbitrum sequencer feed reader with built-in transaction decoding and MEV features
 
 ## Design Goal
