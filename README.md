@@ -40,3 +40,9 @@ async fn main() {
 }
 
 ```
+
+## Status
+Currently, the sequencer-reader does not have full transaction decoding and only includes the MEV specific parts
+
+## License
+This repo is licensed under the MIT license.
