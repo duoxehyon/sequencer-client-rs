@@ -1,8 +1,9 @@
-use std::time::Instant;
 use ethereum_types::{H160, U256};
+use ethers::types::Transaction;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use serde_json::Value;
+use std::time::Instant;
 
 /// Will be sent across after decoding
 #[derive(Debug, Clone)]
@@ -13,12 +14,12 @@ pub struct Tx {
     pub time: Instant,
     // Tx   (to, value, data)
     pub tx: (H160, U256, Vec<u8>),
+    pub l2_tx: Transaction,
 }
 
 /*
     Serde derive types
 */
-
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Root {
@@ -59,3 +60,4 @@ pub struct Header {
     pub request_id: Value,
     pub base_fee_l1: Value,
 }
+
