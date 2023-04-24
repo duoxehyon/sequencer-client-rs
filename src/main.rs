@@ -3,6 +3,7 @@ use sequencer_client::feed_clients::RelayClients;
 use std::sync::Arc;
 
 use env_logger::Builder;
+use log::info;
 use log::LevelFilter;
 
 #[tokio::main]
@@ -16,7 +17,7 @@ async fn main() {
     let (sender, receiver) = unbounded();
 
     // Create a new relay client and start background maintenance
-    let relay_client = RelayClients::new("wss://nova.arbitrum.io/feed", 42170, 2, 1, sender)
+    let relay_client = RelayClients::new("wss://arb1.arbitrum.io/feed", 42161, 2, 1, sender)
         .expect("Failed to create relay client");
     RelayClients::start_reader(Arc::new(relay_client));
 
@@ -32,8 +33,11 @@ async fn main() {
         }
 
         highest_seq_number = data.seq_num;
-        // let elapsed_time = data.time.elapsed();
+        let elapsed_time = data.time.elapsed();
 
-        // info!("Received message, sequencer_number: {} | Took {:?}", data.seq_num, elapsed_time);
+        info!(
+            "Received message, sequencer_number: {:?} | Took {:?}",
+            data.seq_num, elapsed_time
+        );
     }
 }

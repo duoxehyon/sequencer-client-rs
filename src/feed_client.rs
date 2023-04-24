@@ -1,5 +1,8 @@
+use crate::errors::*;
 use crate::types::Root;
+use crate::types::Tx;
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use ethers::types::Transaction;
 use log::error;
 use log::*;
 use std::time::Instant;
@@ -8,13 +11,11 @@ use std::{
     net::TcpStream,
     sync::{Arc, Mutex},
 };
-use crate::errors::*;
-use crate::types::Tx;
 
 use tungstenite::{stream::MaybeTlsStream, WebSocket};
 use url::Url;
 
-/// Sequencer Feed Client 
+/// Sequencer Feed Client
 pub struct RelayClient {
     // Socket connection to read from
     connection: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
@@ -123,8 +124,9 @@ impl RelayClient {
                             continue;
                         }
 
-                        // for benchmarking / disconnecting bad connections 
+                        // for benchmarking / disconnecting bad connections
                         let now = Instant::now();
+
                         let decoded_root: Root = match serde_json::from_slice(&message.into_data())
                         {
                             Ok(d) => d,
@@ -136,15 +138,21 @@ impl RelayClient {
                             Some(d) => d,
                             None => continue,
                         };
+                        let l2_bytes =
+                            base64::decode(&decoded_root.messages[0].message.message.l2msg)
+                                .unwrap();
+                        let l2_tx: Transaction =
+                            ethers::utils::rlp::decode(&l2_bytes[1..]).unwrap();
 
                         let tx = Tx {
                             time: now,
                             seq_num: decoded_root.messages[0].sequence_number,
                             tx: decoded_tx,
+                            l2_tx,
                         };
 
                         sender.send(tx).unwrap();
-                    },
+                    }
                     Err(e) => {
                         update_sender
                             .send(ConnectionUpdate::StoppedSendingFrames(id))
@@ -163,3 +171,4 @@ impl RelayClient {
         Ok(())
     }
 }
+
