@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [profile.release]
-incremental = true
-debug = true
+# incremental = true
+# debug = true
 lto = "fat"
 
 [dependencies]
@@ -14,9 +14,9 @@ base64 = "0.20.0"
 serde_json = "1.0.95"
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0.159"
-rlp = {path = "./rlp" }
+rlp = { version = "0.5", features = ["derive"] }
 hex = "0.4.3"
-ethereum-types = "0.3"
+ethereum-types = "0.14"
 url = "2.3.1"
 crossbeam-channel = "0.5.7"
 env_logger = "0.10.0"

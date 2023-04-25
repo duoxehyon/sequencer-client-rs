@@ -43,7 +43,7 @@ impl RelayClient {
         let key = tungstenite::handshake::client::generate_key();
         let host = url
             .host_str()
-            .ok_or_else(|| RelayError::InitialConnectionError(ConnectionError::Unknown))?;
+            .ok_or(RelayError::InitialConnectionError(ConnectionError::Unknown))?;
 
         let req = tungstenite::handshake::client::Request::builder()
             .method("GET")
@@ -70,7 +70,7 @@ impl RelayClient {
         let chain_id_resp = resp
             .headers()
             .get("arbitrum-chain-id")
-            .ok_or_else(|| RelayError::InitialConnectionError(ConnectionError::Unknown))?
+            .ok_or(RelayError::InitialConnectionError(ConnectionError::Unknown))?
             .to_str()
             .unwrap_or_default();
 
@@ -162,7 +162,7 @@ impl RelayClient {
                     }
                 }
 
-                if let Ok(_) = receive_end.try_recv() {
+                if receive_end.try_recv().is_ok() {
                     break;
                 }
             }

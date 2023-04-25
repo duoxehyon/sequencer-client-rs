@@ -37,22 +37,22 @@ impl L1IncomingMessageHeader {
         if self.header.kind == L1_MESSAGE_TYPE_L2_MESSAGE {
             return base64::decode(self.l2msg.as_bytes())
                 .ok()
-                .and_then(|bytes| Self::parse_l2_message(bytes));
+                .and_then(Self::parse_l2_message);
         }
 
-        return None;
+        None
     }
 
     // 2 us faster
     fn parse_l2_message(data: Vec<u8>) -> Option<(H160, U256, Vec<u8>)> {
-        if *data.get(0)? == 4 {
+        if *data.first()? == 4 {
             let buf_after = data.get(1..)?;
-            let pointer = *buf_after.get(0)?;
+            let pointer = *buf_after.first()?;
             // Regular transactions
             if pointer > 0x7f {
                 // Legacy tx
                 // Last val at 8
-                let rlp_object = rlp::Rlp::new(&buf_after);
+                let rlp_object = rlp::Rlp::new(buf_after);
                 // Offset at zero
                 return Self::parse_single_tx(rlp_object, 0);
             } else if pointer == 1 {
@@ -69,7 +69,7 @@ impl L1IncomingMessageHeader {
                 return Self::parse_single_tx(rlp_object, 2);
             }
         };
-        return None;
+        None
     }
 
     fn parse_single_tx(data: Rlp, offset: usize) -> Option<(H160, U256, Vec<u8>)> {

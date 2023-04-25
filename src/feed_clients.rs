@@ -39,7 +39,7 @@ impl RelayClients {
         init_connections: u8,
         sender: Sender<Tx>,
     ) -> Result<Self, RelayError> {
-        let url = Url::parse(url).or_else(|_x| Err(RelayError::InvalidUrl))?;
+        let url = Url::parse(url).map_err(|_x| RelayError::InvalidUrl)?;
 
         let updates = unbounded();
         let mut connections: Vec<RelayClient> = Vec::new();
@@ -146,7 +146,7 @@ impl RelayClients {
                                 // This connection is not connected and it's been more than 70 seconds since the last connect / disconnect event
                                 up_coming_connection = Some(id);
                                 // Adding the connection
-                                if let Err(_) = self.add_client(id) {
+                                if self.add_client(id).is_err() {
                                     last_disconnected_time = time::SystemTime::now();
                                     error!("Failed to add client");
                                     break;
@@ -160,13 +160,13 @@ impl RelayClients {
                         }
 
                         // If all connections are active and max connections is less than current "total connections", we add
-                        if up_coming_connection == None
+                        if up_coming_connection.is_none()
                             && elapsed_connected > 70
                             && elapsed_disconnect > 70
                             && max_clients > total_clients
                         {
                             // A new connection needs to be created
-                            if let Err(_) = self.add_client(total_clients) {
+                            if self.add_client(total_clients).is_err() {
                                 last_disconnected_time = time::SystemTime::now();
                                 error!("Failed to add client");
                                 continue;
