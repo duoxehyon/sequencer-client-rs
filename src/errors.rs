@@ -27,7 +27,9 @@ impl fmt::Display for ConnectionError {
             ConnectionError::RequestTimeOut => write!(f, "Connection timed out"),
             ConnectionError::RateLimited => write!(f, "Connection rate limited"),
             ConnectionError::Unknown => write!(f, "Unknown connection error"),
-            ConnectionError::InvalidChainId => write!(f, "Sequencer feed is not for the given chain id")
+            ConnectionError::InvalidChainId => {
+                write!(f, "Sequencer feed is not for the given chain id")
+            }
         }
     }
 }
@@ -47,4 +49,3 @@ impl fmt::Display for RelayError {
         }
     }
 }
-

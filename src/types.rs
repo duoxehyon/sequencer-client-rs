@@ -60,4 +60,3 @@ pub struct Header {
     pub request_id: Value,
     pub base_fee_l1: Value,
 }
-

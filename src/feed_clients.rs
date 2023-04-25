@@ -1,16 +1,16 @@
+use crate::errors::*;
 use crate::feed_client::*;
 use crate::types::Tx;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::error;
 use log::*;
-use url::Url;
 use std::thread;
 use std::time::Duration;
 use std::{
     sync::{Arc, Mutex},
     time,
 };
-use crate::errors::*;
+use url::Url;
 
 // For maintaining the sequencer feed clients
 pub struct RelayClients {
@@ -78,16 +78,16 @@ impl RelayClients {
     pub fn start_reader(self: Arc<Self>) {
         let mut last_connected_time = time::SystemTime::now();
         let mut last_disconnected_time = time::SystemTime::now();
-        
+
         let mut active_clients: Vec<bool> = {
             // Lock mutex and create vector of active client states
             let clients = self.clients.lock().unwrap();
             vec![true; clients.len()]
         };
-        
+
         let mut total_active_clients = active_clients.len();
         let mut total_clients = total_active_clients;
-        
+
         let max_clients = self.max_connections;
         let mut num_checks = 0;
 
@@ -128,7 +128,7 @@ impl RelayClients {
 
                         last_disconnected_time = time::SystemTime::now();
                         warn!("Client disconnected | Client Id: {}", updated_id);
-                    },
+                    }
                     Err(_) => {
                         // No message was received, check the connections
                         let now = std::time::SystemTime::now();
@@ -209,7 +209,7 @@ impl RelayClients {
         } else {
             clients[id] = client;
         }
-        
+
         Ok(())
     }
 }
