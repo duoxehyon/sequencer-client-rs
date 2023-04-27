@@ -1,4 +1,4 @@
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
 use ethers::types::{H160, U256};
 use ethers::utils::rlp::{self, DecoderError, Rlp};
 
@@ -35,7 +35,8 @@ impl L1IncomingMessageHeader {
         }
 
         if self.header.kind == L1_MESSAGE_TYPE_L2_MESSAGE {
-            return general_purpose::STANDARD.decode(self.l2msg.as_bytes())
+            return general_purpose::STANDARD
+                .decode(self.l2msg.as_bytes())
                 .ok()
                 .and_then(Self::parse_l2_message);
         }
