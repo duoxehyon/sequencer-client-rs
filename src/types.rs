@@ -11,14 +11,16 @@ pub struct Tx {
     pub seq_num: i64,
     // Time at recieve
     pub time: Instant,
-    // Tx   (to, value, data)
+    // MEV Specific (deprecation soon) ~ (to, value, data)
     pub tx: (H160, U256, Vec<u8>),
+    // Full transaction
     pub l2_tx: Transaction,
 }
 
 /*
     Serde derive types
 */
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Root {
