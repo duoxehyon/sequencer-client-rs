@@ -1,6 +1,7 @@
 use crate::errors::*;
 use crate::types::Root;
 use crate::types::Tx;
+use base64::{Engine as _, engine::general_purpose};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use ethers::types::Transaction;
 use log::error;
@@ -139,8 +140,7 @@ impl RelayClient {
                             None => continue,
                         };
                         let l2_bytes =
-                            base64::decode(&decoded_root.messages[0].message.message.l2msg)
-                                .unwrap();
+                            general_purpose::STANDARD.decode(&decoded_root.messages[0].message.message.l2msg).unwrap();
                         let l2_tx: Transaction =
                             ethers::utils::rlp::decode(&l2_bytes[1..]).unwrap();
 

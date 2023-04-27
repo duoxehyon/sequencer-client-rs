@@ -1,6 +1,6 @@
-use base64;
-use ethereum_types::{H160, U256};
-use rlp::{self, DecoderError, Rlp};
+use base64::{Engine as _, engine::general_purpose};
+use ethers::types::{H160, U256};
+use ethers::utils::rlp::{self, DecoderError, Rlp};
 
 use crate::types::L1IncomingMessageHeader;
 
@@ -35,7 +35,7 @@ impl L1IncomingMessageHeader {
         }
 
         if self.header.kind == L1_MESSAGE_TYPE_L2_MESSAGE {
-            return base64::decode(self.l2msg.as_bytes())
+            return general_purpose::STANDARD.decode(self.l2msg.as_bytes())
                 .ok()
                 .and_then(Self::parse_l2_message);
         }

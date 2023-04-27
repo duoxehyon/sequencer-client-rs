@@ -1,5 +1,4 @@
-use ethereum_types::{H160, U256};
-use ethers::types::Transaction;
+use ethers::types::{H160, U256, Transaction};
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use serde_json::Value;
