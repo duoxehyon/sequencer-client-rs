@@ -131,19 +131,28 @@ impl RelayClient {
                         let decoded_root: Root = match serde_json::from_slice(&message.into_data())
                         {
                             Ok(d) => d,
-                            Err(_) => continue,
+                            Err(_) => continue
                         };
 
                         // first tx only
                         let decoded_tx = match decoded_root.messages[0].message.message.decode() {
                             Some(d) => d,
-                            None => continue,
+                            None => continue
                         };
-                        let l2_bytes = general_purpose::STANDARD
+
+                        let l2_bytes = match general_purpose::STANDARD
                             .decode(&decoded_root.messages[0].message.message.l2msg)
-                            .unwrap();
-                        let l2_tx: Transaction =
-                            ethers::utils::rlp::decode(&l2_bytes[1..]).unwrap();
+                        {
+                            Ok(d) => d,
+                            Err(_) => continue
+                        };
+                        
+                        let l2_tx: Transaction = match 
+                            ethers::utils::rlp::decode(&l2_bytes[1..])
+                        {
+                            Ok(d) => d,
+                            Err(_) => continue
+                        };
 
                         let tx = Tx {
                             time: now,
