@@ -1,5 +1,4 @@
-use ethereum_types::{H160, U256};
-use ethers::types::Transaction;
+use ethers::types::{Transaction, H160, U256};
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use serde_json::Value;
@@ -60,4 +59,3 @@ pub struct Header {
     pub request_id: Value,
     pub base_fee_l1: Value,
 }
-

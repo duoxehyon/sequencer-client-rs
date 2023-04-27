@@ -1,16 +1,16 @@
+use crate::errors::*;
 use crate::feed_client::*;
 use crate::types::Tx;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::error;
 use log::*;
-use url::Url;
 use std::thread;
 use std::time::Duration;
 use std::{
     sync::{Arc, Mutex},
     time,
 };
-use crate::errors::*;
+use url::Url;
 
 // For maintaining the sequencer feed clients
 pub struct RelayClients {
@@ -39,7 +39,7 @@ impl RelayClients {
         init_connections: u8,
         sender: Sender<Tx>,
     ) -> Result<Self, RelayError> {
-        let url = Url::parse(url).or_else(|_x| Err(RelayError::InvalidUrl))?;
+        let url = Url::parse(url).map_err(|_x| RelayError::InvalidUrl)?;
 
         let updates = unbounded();
         let mut connections: Vec<RelayClient> = Vec::new();
@@ -78,16 +78,16 @@ impl RelayClients {
     pub fn start_reader(self: Arc<Self>) {
         let mut last_connected_time = time::SystemTime::now();
         let mut last_disconnected_time = time::SystemTime::now();
-        
+
         let mut active_clients: Vec<bool> = {
             // Lock mutex and create vector of active client states
             let clients = self.clients.lock().unwrap();
             vec![true; clients.len()]
         };
-        
+
         let mut total_active_clients = active_clients.len();
         let mut total_clients = total_active_clients;
-        
+
         let max_clients = self.max_connections;
         let mut num_checks = 0;
 
@@ -128,7 +128,7 @@ impl RelayClients {
 
                         last_disconnected_time = time::SystemTime::now();
                         warn!("Client disconnected | Client Id: {}", updated_id);
-                    },
+                    }
                     Err(_) => {
                         // No message was received, check the connections
                         let now = std::time::SystemTime::now();
@@ -146,7 +146,7 @@ impl RelayClients {
                                 // This connection is not connected and it's been more than 70 seconds since the last connect / disconnect event
                                 up_coming_connection = Some(id);
                                 // Adding the connection
-                                if let Err(_) = self.add_client(id) {
+                                if self.add_client(id).is_err() {
                                     last_disconnected_time = time::SystemTime::now();
                                     error!("Failed to add client");
                                     break;
@@ -160,13 +160,13 @@ impl RelayClients {
                         }
 
                         // If all connections are active and max connections is less than current "total connections", we add
-                        if up_coming_connection == None
+                        if up_coming_connection.is_none()
                             && elapsed_connected > 70
                             && elapsed_disconnect > 70
                             && max_clients > total_clients
                         {
                             // A new connection needs to be created
-                            if let Err(_) = self.add_client(total_clients) {
+                            if self.add_client(total_clients).is_err() {
                                 last_disconnected_time = time::SystemTime::now();
                                 error!("Failed to add client");
                                 continue;
@@ -209,7 +209,7 @@ impl RelayClients {
         } else {
             clients[id] = client;
         }
-        
+
         Ok(())
     }
 }

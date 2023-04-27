@@ -1,6 +1,7 @@
 use crate::errors::*;
 use crate::types::Root;
 use crate::types::Tx;
+use base64::{engine::general_purpose, Engine as _};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use ethers::types::Transaction;
 use log::error;
@@ -43,7 +44,7 @@ impl RelayClient {
         let key = tungstenite::handshake::client::generate_key();
         let host = url
             .host_str()
-            .ok_or_else(|| RelayError::InitialConnectionError(ConnectionError::Unknown))?;
+            .ok_or(RelayError::InitialConnectionError(ConnectionError::Unknown))?;
 
         let req = tungstenite::handshake::client::Request::builder()
             .method("GET")
@@ -70,7 +71,7 @@ impl RelayClient {
         let chain_id_resp = resp
             .headers()
             .get("arbitrum-chain-id")
-            .ok_or_else(|| RelayError::InitialConnectionError(ConnectionError::Unknown))?
+            .ok_or(RelayError::InitialConnectionError(ConnectionError::Unknown))?
             .to_str()
             .unwrap_or_default();
 
@@ -138,9 +139,9 @@ impl RelayClient {
                             Some(d) => d,
                             None => continue,
                         };
-                        let l2_bytes =
-                            base64::decode(&decoded_root.messages[0].message.message.l2msg)
-                                .unwrap();
+                        let l2_bytes = general_purpose::STANDARD
+                            .decode(&decoded_root.messages[0].message.message.l2msg)
+                            .unwrap();
                         let l2_tx: Transaction =
                             ethers::utils::rlp::decode(&l2_bytes[1..]).unwrap();
 
@@ -162,7 +163,7 @@ impl RelayClient {
                     }
                 }
 
-                if let Ok(_) = receive_end.try_recv() {
+                if receive_end.try_recv().is_ok() {
                     break;
                 }
             }
@@ -171,4 +172,3 @@ impl RelayClient {
         Ok(())
     }
 }
-

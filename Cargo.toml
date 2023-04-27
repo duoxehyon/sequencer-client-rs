@@ -4,22 +4,19 @@ version = "0.1.0"
 edition = "2021"
 
 [profile.release]
-incremental = true
-debug = true
-lto = "fat"
+lto = true
+opt-level = 3
 
 [dependencies]
-tungstenite = {version = "0.18.0", features = ["native-tls"] }
-base64 = "0.20.0"
-serde_json = "1.0.95"
+tungstenite = {version = "0.19.0", features = ["native-tls"] }
+base64 = "0.21.0"
+serde_json = "1.0.96"
 serde = { version = "1.0", features = ["derive"] }
-serde_derive = "1.0.159"
-rlp = {path = "./rlp" }
+serde_derive = "1.0.160"
 hex = "0.4.3"
-ethereum-types = "0.3"
 url = "2.3.1"
-crossbeam-channel = "0.5.7"
+crossbeam-channel = "0.5.8"
 env_logger = "0.10.0"
 log = "0.4.17"
-tokio = { version = "1.5", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.28", features = ["macros", "rt-multi-thread"] }
 ethers = "2.0.3"
