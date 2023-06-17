@@ -34,6 +34,19 @@ impl L1IncomingMessageHeader {
             return None;
         }
 
+        // TODO implement full decoding of batch transactions and return full tx
+        // let l2_bytes = match general_purpose::STANDARD
+        //     .decode(&decoded_root.messages[0].message.message.l2msg) {
+        //     Ok(d) => d,
+        //     Err(_) => return
+        // };
+
+        // let l2_tx: Transaction = match 
+        //     ethers::utils::rlp::decode(&l2_bytes[1..]) {
+        //     Ok(d) => d,
+        //     Err(_) => return
+        // }; For batch txns
+
         if self.header.kind == L1_MESSAGE_TYPE_L2_MESSAGE {
             return general_purpose::STANDARD
                 .decode(self.l2msg.as_bytes())
@@ -80,4 +93,5 @@ impl L1IncomingMessageHeader {
             data.val_at(offset + 5).ok()?,
         ))
     }
+    
 }

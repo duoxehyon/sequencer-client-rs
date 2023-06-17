@@ -1,12 +1,13 @@
 use crate::errors::*;
 use crate::types::Root;
-use crate::types::Tx;
-use base64::{engine::general_purpose, Engine as _};
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use ethers::types::Transaction;
+use crossbeam_channel::Sender;
 use log::error;
 use log::*;
-use std::time::Instant;
+use tokio::task::JoinHandle;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::Context;
+use std::task::Poll;
 use std::{
     error::Error,
     net::TcpStream,
@@ -20,14 +21,12 @@ use url::Url;
 pub struct RelayClient {
     // Socket connection to read from
     connection: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
-    // Sends Transactions
-    sender: Sender<Tx>,
-    // For Stopping the reader
-    receiver: (Sender<()>, Receiver<()>),
     // For sending errors / disconnects
     connection_update: Sender<ConnectionUpdate>,
+    // Sends Transactions
+    sender: Sender<Root>,
     // Relay ID
-    id: usize,
+    id: u32,
 }
 
 impl RelayClient {
@@ -35,8 +34,8 @@ impl RelayClient {
     pub fn new(
         url: Url,
         chain_id: u64,
-        id: usize,
-        sender: Sender<Tx>,
+        id: u32,
+        sender: Sender<Root>,
         connection_update: Sender<ConnectionUpdate>,
     ) -> Result<Self, RelayError> {
         info!("Adding client | Client Id: {}", id);
@@ -81,103 +80,64 @@ impl RelayClient {
             ));
         }
 
-        let receiver = unbounded();
-
         Ok(Self {
             connection: Arc::new(Mutex::new(socket)),
             connection_update,
             sender,
-            receiver,
             id,
         })
     }
 
-    // Sends a signal to the reader to stop reading.
-    pub fn disconnect(&self) -> Result<(), Box<dyn Error>> {
-        self.receiver.0.send(())?;
-
-        let mut connection = self.connection.lock().unwrap();
-        connection.close(None)?;
-
-        Ok(())
-    }
-
     // Start the reader
-    pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn spawn(self) -> JoinHandle<()> {
         info!("Sequencer feed reader started | Client Id: {}", self.id);
 
-        let receive_end = self.receiver.1.clone();
-        let client = self.connection.clone();
-        let sender = self.sender.clone();
-        let update_sender = self.connection_update.clone();
-        let id = self.id;
-
         tokio::spawn(async move {
-            let mut connection = client.lock().unwrap();
-            let mut read = 0;
+            match self.await {
+                Ok(_) => (),
+                Err(e) => error!("{}", e)
+            }
+        })
+    }
+}
 
-            loop {
-                match connection.read_message() {
-                    Ok(message) => {
-                        // skip Intital frames
-                        if read < 4 {
-                            read += 1;
-                            continue;
-                        }
+impl Future for RelayClient {
+    type Output = Result<(), Box<dyn Error>>;
 
-                        // for benchmarking / disconnecting bad connections
-                        let now = Instant::now();
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
 
-                        let decoded_root: Root = match serde_json::from_slice(&message.into_data())
-                        {
-                            Ok(d) => d,
-                            Err(_) => continue
-                        };
+        loop {
+            let mut connection = match this.connection.try_lock() {
+                Ok(connection) => connection,
+                Err(_) => {
+                    cx.waker().wake_by_ref();
+                    return Poll::Pending;
+                }
+            };
 
-                        // first tx only
-                        let decoded_tx = match decoded_root.messages[0].message.message.decode() {
-                            Some(d) => d,
-                            None => continue
-                        };
+            match connection.read_message() {
+                Ok(message) => {
+                    let decoded_root: Root = match serde_json::from_slice(&message.into_data()) {
+                        Ok(d) => d,
+                        Err(_) => continue,
+                    };
 
-                        let l2_bytes = match general_purpose::STANDARD
-                            .decode(&decoded_root.messages[0].message.message.l2msg)
-                        {
-                            Ok(d) => d,
-                            Err(_) => continue
-                        };
-                        
-                        let l2_tx: Transaction = match 
-                            ethers::utils::rlp::decode(&l2_bytes[1..])
-                        {
-                            Ok(d) => d,
-                            Err(_) => continue
-                        };
-
-                        let tx = Tx {
-                            time: now,
-                            seq_num: decoded_root.messages[0].sequence_number,
-                            tx: decoded_tx,
-                            l2_tx,
-                        };
-
-                        sender.send(tx).unwrap();
-                    }
-                    Err(e) => {
-                        update_sender
-                            .send(ConnectionUpdate::StoppedSendingFrames(id))
-                            .unwrap();
-                        error!("Connection closed with error: {}", e);
-                        break;
+                    if this.sender.send(decoded_root).is_err() {
+                        break; // we gracefully exit
                     }
                 }
 
-                if receive_end.try_recv().is_ok() {
+                Err(e) => {
+                    this.connection_update
+                        .send(ConnectionUpdate::StoppedSendingFrames(this.id))
+                        .unwrap();
+                    error!("Connection closed with error: {}", e);
                     break;
                 }
             }
-        });
+        }
 
-        Ok(())
+        Poll::Ready(Ok(()))
     }
 }
