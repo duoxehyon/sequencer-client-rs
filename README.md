@@ -19,23 +19,28 @@ async fn main() {
     let (sender, receiver) = unbounded();
 
     // Create a new relay client and start reader + connection maintainer
-    let relay_client = RelayClients::new("wss://nova.arbitrum.io/feed", 42170, 2, 1, sender)
+    let relay_client = RelayClients::new("wss://arb1.arbitrum.io/feed", 42161, 2, 1, sender)
         .expect("Failed to create relay client");
-    RelayClients::start_reader(Arc::new(relay_client));
+    tokio::spawn(RelayClients::start_reader(relay_client));
 
     // To prevent duplicate messages
     let mut highest_seq_number: i64 = 0;
 
     loop {
-        let data = receiver.recv().expect("Failed to receive data from feed client");
+        let data = receiver
+            .recv()
+            .expect("Failed to receive data from feed client");
 
-        if highest_seq_number >= data.seq_num {
+        let msg_seq_num = data.messages[0].sequence_number;
+
+
+        if highest_seq_number >= msg_seq_num {
             continue;
         }
 
-        highest_seq_number = data.seq_num;
-        let elapsed_time = data.time.elapsed();
-        info!("Received message, sequencer_number: {} | Took {:?}", data.seq_num, elapsed_time);
+        highest_seq_number = msg_seq_num;
+
+        info!("Received message, sequencer_number: {:?} ", msg_seq_num);
     }
 }
 

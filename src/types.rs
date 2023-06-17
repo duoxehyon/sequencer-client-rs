@@ -1,25 +1,6 @@
-use ethers::types::{Transaction, H160, U256};
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use serde_json::Value;
-use std::time::Instant;
-
-/// Will be sent across after decoding
-#[derive(Debug, Clone)]
-pub struct Tx {
-    // Message block num
-    pub seq_num: i64,
-    // Time at recieve
-    pub time: Instant,
-    // MEV Specific (deprecation soon) ~ (to, value, data)
-    pub tx: (H160, U256, Vec<u8>),
-    // Full transaction
-    pub l2_tx: Transaction,
-}
-
-/*
-    Serde derive types
-*/
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

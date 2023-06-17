@@ -17,8 +17,8 @@ pub enum ConnectionError {
 
 #[derive(Debug)]
 pub enum ConnectionUpdate {
-    StoppedSendingFrames(usize),
-    Unknown(usize),
+    StoppedSendingFrames(u32),
+    Unknown(u32),
 }
 
 impl fmt::Display for ConnectionError {
