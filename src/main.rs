@@ -29,7 +29,6 @@ async fn main() {
 
         let msg_seq_num = data.messages[0].sequence_number;
 
-
         if highest_seq_number >= msg_seq_num {
             continue;
         }

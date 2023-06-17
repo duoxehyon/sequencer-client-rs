@@ -4,11 +4,11 @@ use crate::types::Root;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::error;
 use log::*;
-use tokio::task::JoinHandle;
 use std::collections::HashMap;
 use std::thread;
-use std::time::Duration;
 use std::time;
+use std::time::Duration;
+use tokio::task::JoinHandle;
 use url::Url;
 
 // For maintaining the sequencer feed clients
@@ -78,7 +78,7 @@ impl RelayClients {
 
         let max_clients = self.max_connections;
         let mut num_checks = 0;
-       
+
         loop {
             // Wait for 1 second before checking the connections again
             thread::sleep(Duration::from_secs(1));

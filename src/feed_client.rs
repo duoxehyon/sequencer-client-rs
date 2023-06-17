@@ -3,7 +3,6 @@ use crate::types::Root;
 use crossbeam_channel::Sender;
 use log::error;
 use log::*;
-use tokio::task::JoinHandle;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Context;
@@ -13,6 +12,7 @@ use std::{
     net::TcpStream,
     sync::{Arc, Mutex},
 };
+use tokio::task::JoinHandle;
 
 use tungstenite::{stream::MaybeTlsStream, WebSocket};
 use url::Url;
@@ -95,7 +95,7 @@ impl RelayClient {
         tokio::spawn(async move {
             match self.await {
                 Ok(_) => (),
-                Err(e) => error!("{}", e)
+                Err(e) => error!("{}", e),
             }
         })
     }
