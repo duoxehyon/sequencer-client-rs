@@ -4,14 +4,7 @@ use crossbeam_channel::Sender;
 use log::error;
 use log::*;
 use tokio::task::JoinHandle;
-use std::future::Future;
-use std::pin::Pin;
-use std::task::Context;
-use std::task::Poll;
-use std::{
-    error::Error,
-    net::TcpStream
-};
+use std::net::TcpStream;
 
 use tungstenite::{stream::MaybeTlsStream, WebSocket};
 use url::Url;
@@ -91,19 +84,15 @@ impl RelayClient {
     pub fn spawn(self) -> JoinHandle<()> {
         info!("Sequencer feed reader started | Client Id: {}", self.id);
 
-        tokio::spawn(async move {
-            match self.await {
+        tokio::task::spawn_blocking(move || {
+            match self.run() {
                 Ok(_) => (),
                 Err(e) => error!("{}", e)
             }
         })
     }
-}
 
-impl Future for RelayClient {
-    type Output = Result<(), Box<dyn Error>>;
-
-    fn poll(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
+    pub fn run(mut self) -> Result<(), RelayError> {
         loop {
             match self.connection.read_message() {
                 Ok(message) => {
@@ -126,6 +115,6 @@ impl Future for RelayClient {
             }
         }
 
-        Poll::Ready(Ok(()))
+        Ok(())
     }
 }
