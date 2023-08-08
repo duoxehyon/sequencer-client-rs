@@ -4,15 +4,7 @@ use crossbeam_channel::Sender;
 use log::error;
 use log::*;
 use tokio::task::JoinHandle;
-use std::future::Future;
-use std::pin::Pin;
-use std::task::Context;
-use std::task::Poll;
-use std::{
-    error::Error,
-    net::TcpStream,
-    sync::{Arc, Mutex},
-};
+use std::net::TcpStream;
 
 use tungstenite::{stream::MaybeTlsStream, WebSocket};
 use url::Url;
@@ -20,7 +12,7 @@ use url::Url;
 /// Sequencer Feed Client
 pub struct RelayClient {
     // Socket connection to read from
-    connection: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
+    connection: WebSocket<MaybeTlsStream<TcpStream>>,
     // For sending errors / disconnects
     connection_update: Sender<ConnectionUpdate>,
     // Sends Transactions
@@ -81,7 +73,7 @@ impl RelayClient {
         }
 
         Ok(Self {
-            connection: Arc::new(Mutex::new(socket)),
+            connection: socket,
             connection_update,
             sender,
             id,
@@ -92,45 +84,30 @@ impl RelayClient {
     pub fn spawn(self) -> JoinHandle<()> {
         info!("Sequencer feed reader started | Client Id: {}", self.id);
 
-        tokio::spawn(async move {
-            match self.await {
+        tokio::task::spawn_blocking(move || {
+            match self.run() {
                 Ok(_) => (),
                 Err(e) => error!("{}", e)
             }
         })
     }
-}
 
-impl Future for RelayClient {
-    type Output = Result<(), Box<dyn Error>>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.get_mut();
-
+    pub fn run(mut self) -> Result<(), RelayError> {
         loop {
-            let mut connection = match this.connection.try_lock() {
-                Ok(connection) => connection,
-                Err(_) => {
-                    cx.waker().wake_by_ref();
-                    return Poll::Pending;
-                }
-            };
-
-            match connection.read_message() {
+            match self.connection.read_message() {
                 Ok(message) => {
                     let decoded_root: Root = match serde_json::from_slice(&message.into_data()) {
                         Ok(d) => d,
                         Err(_) => continue,
                     };
 
-                    if this.sender.send(decoded_root).is_err() {
+                    if self.sender.send(decoded_root).is_err() {
                         break; // we gracefully exit
                     }
                 }
-
                 Err(e) => {
-                    this.connection_update
-                        .send(ConnectionUpdate::StoppedSendingFrames(this.id))
+                    self.connection_update
+                        .send(ConnectionUpdate::StoppedSendingFrames(self.id))
                         .unwrap();
                     error!("Connection closed with error: {}", e);
                     break;
@@ -138,6 +115,6 @@ impl Future for RelayClient {
             }
         }
 
-        Poll::Ready(Ok(()))
+        Ok(())
     }
 }

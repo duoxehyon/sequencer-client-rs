@@ -11,7 +11,6 @@ Here is a basic example.
 ```Rust
 use crossbeam_channel::unbounded;
 use sequencer_client::feed_clients::RelayClients;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
