@@ -1,4 +1,4 @@
-use crate::errors::*;
+use crate::errors::{RelayError, ConnectionUpdate};
 use crate::types::Root;
 use crossbeam_channel::Sender;
 use ethers::providers::StreamExt;
@@ -34,7 +34,7 @@ impl RelayClient {
         let key = tungstenite::handshake::client::generate_key();
         let host = url
             .host_str()
-            .ok_or(RelayError::InitialConnectionError(ConnectionError::Unknown))?;
+            .ok_or(RelayError::Msg("Invalid URL".to_owned()))?;
 
         let req = tungstenite::handshake::client::Request::builder()
             .method("GET")
@@ -46,22 +46,19 @@ impl RelayClient {
             .header("Sec-WebSocket-Key", key)
             .header("Arbitrum-Feed-Client-Version", "2")
             .header("Arbitrum-Requested-Sequence-number", "0")
-            .body(())
-            .map_err(|_| RelayError::InitialConnectionError(ConnectionError::RequestTimeOut))?;
+            .body(())?;
 
-        let (socket, resp) = connect_async(req).await.unwrap();
-        
+        let (socket, resp) = connect_async(req).await?;
+
         let chain_id_resp = resp
             .headers()
             .get("arbitrum-chain-id")
-            .ok_or(RelayError::InitialConnectionError(ConnectionError::Unknown))?
+            .ok_or(RelayError::InvalidChainId)?
             .to_str()
             .unwrap_or_default();
 
-        if chain_id_resp.parse::<u64>().unwrap_or_default() != chain_id {
-            return Err(RelayError::InitialConnectionError(
-                ConnectionError::InvalidChainId,
-            ));
+        if chain_id_resp.parse::<u64>().unwrap_or_default()  != chain_id {
+            return Err(RelayError::InvalidChainId);
         }
 
         Ok(Self {
@@ -85,22 +82,21 @@ impl RelayClient {
     }
 
     pub async fn run(mut self) -> Result<(), RelayError> {
-        loop {
-            match self.connection.next().await.unwrap() {
+        while let Some(msg) = self.connection.next().await {
+            match msg {
                 Ok(message) => {
                     let decoded_root: Root = match serde_json::from_slice(&message.into_data()) {
                         Ok(d) => d,
                         Err(_) => continue,
                     };
-
+    
                     if self.sender.send(decoded_root).is_err() {
                         break; // we gracefully exit
                     }
                 }
                 Err(e) => {
                     self.connection_update
-                        .send(ConnectionUpdate::StoppedSendingFrames(self.id))
-                        .unwrap();
+                        .send(ConnectionUpdate::StoppedSendingFrames(self.id))?;
                     error!("Connection closed with error: {}", e);
                     break;
                 }

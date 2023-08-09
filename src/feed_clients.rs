@@ -1,14 +1,11 @@
-use crate::errors::*;
+use crate::errors::{RelayError, ConnectionUpdate};
 use crate::feed_client::*;
 use crate::types::Root;
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use log::error;
 use log::*;
 use tokio::task::JoinHandle;
 use std::collections::HashMap;
-use std::thread;
-use std::time::Duration;
-use std::time;
+use std::time::SystemTime;
 use url::Url;
 
 // For maintaining the sequencer feed clients
@@ -38,7 +35,7 @@ impl RelayClients {
         init_connections: u8,
         sender: Sender<Root>,
     ) -> Result<Self, RelayError> {
-        let url = Url::parse(url).map_err(|_x| RelayError::InvalidUrl)?;
+        let url = Url::parse(url).map_err(|_x| RelayError::Msg("Invalid URL".to_owned()))?;
 
         let updates = unbounded();
         let mut connections: HashMap<u32, JoinHandle<()>> = HashMap::new();
@@ -68,8 +65,8 @@ impl RelayClients {
 
     // Required to call after making a new instance
     pub async fn start_reader(mut self) {
-        let mut last_connected_time = time::SystemTime::now();
-        let mut last_disconnected_time = time::SystemTime::now();
+        let mut last_connected_time = SystemTime::now();
+        let mut last_disconnected_time = SystemTime::now();
 
         let mut active_clients: Vec<bool> = vec![true; self.clients.len()];
 
@@ -81,7 +78,7 @@ impl RelayClients {
        
         loop {
             // Wait for 1 second before checking the connections again
-            thread::sleep(Duration::from_secs(1));
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             num_checks += 1;
 
             if num_checks > 40 {
@@ -112,12 +109,12 @@ impl RelayClients {
                         total_active_clients -= 1;
                     }
 
-                    last_disconnected_time = time::SystemTime::now();
+                    last_disconnected_time = SystemTime::now();
                     warn!("Client disconnected | Client Id: {}", updated_id);
                 }
                 Err(_) => {
                     // No message was received, check the connections
-                    let now = std::time::SystemTime::now();
+                    let now = SystemTime::now();
                     let elapsed_connected =
                         now.duration_since(last_connected_time).unwrap().as_secs();
                     let elapsed_disconnect = now
@@ -133,7 +130,7 @@ impl RelayClients {
                             up_coming_connection = Some(id);
                             // Adding the connection
                             if self.add_or_replace_client(id as u32).await.is_err() {
-                                last_disconnected_time = time::SystemTime::now();
+                                last_disconnected_time = SystemTime::now();
                                 error!("Failed to add client");
                                 break;
                             }
@@ -153,7 +150,7 @@ impl RelayClients {
                     {
                         // A new connection needs to be created
                         if self.add_or_replace_client(total_clients).await.is_err() {
-                            last_disconnected_time = time::SystemTime::now();
+                            last_disconnected_time = SystemTime::now();
                             error!("Failed to add client");
                             continue;
                         }
@@ -161,7 +158,7 @@ impl RelayClients {
                         active_clients.push(true);
                         total_active_clients += 1;
                         total_clients += 1;
-                        last_connected_time = time::SystemTime::now();
+                        last_connected_time = SystemTime::now();
                     }
                 }
             }

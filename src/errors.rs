@@ -1,51 +1,34 @@
-use std::fmt;
+use thiserror::Error;
+use tokio::io;
 
-#[derive(Debug)]
+pub type Result<T> = std::result::Result<T, RelayError>;
+
+#[derive(Debug, Error)]
 pub enum RelayError {
-    InitialConnectionError(ConnectionError),
-    SuddenDisconnectError(ConnectionError),
-    InvalidUrl,
-}
+    #[error(transparent)]
+    IO(#[from] io::Error),
 
-#[derive(Debug)]
-pub enum ConnectionError {
-    RequestTimeOut,
-    RateLimited,
+    #[error(transparent)]
+    HTTP(#[from] tungstenite::http::Error),
+
+    #[error(transparent)]
+    Tungstenite(#[from] tungstenite::Error),
+
+    #[error(transparent)]
+    Serde(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    SendError(#[from] crossbeam_channel::SendError<ConnectionUpdate>),
+
+    #[error("Sequencer feed is not for the given chain id")]
     InvalidChainId,
-    Unknown,
+
+    #[error("Relay Error {0}")]
+    Msg(String),
 }
 
 #[derive(Debug)]
 pub enum ConnectionUpdate {
     StoppedSendingFrames(u32),
     Unknown(u32),
-}
-
-impl fmt::Display for ConnectionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ConnectionError::RequestTimeOut => write!(f, "Connection timed out"),
-            ConnectionError::RateLimited => write!(f, "Connection rate limited"),
-            ConnectionError::Unknown => write!(f, "Unknown connection error"),
-            ConnectionError::InvalidChainId => {
-                write!(f, "Sequencer feed is not for the given chain id")
-            }
-        }
-    }
-}
-
-impl fmt::Display for RelayError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            RelayError::InitialConnectionError(e) => {
-                write!(f, "Error connecting to relay: {}", e)
-            }
-            RelayError::SuddenDisconnectError(e) => {
-                write!(f, "Unexpected disconnect from relay: {}", e)
-            }
-            RelayError::InvalidUrl => {
-                write!(f, "Invalid url")
-            }
-        }
-    }
 }
