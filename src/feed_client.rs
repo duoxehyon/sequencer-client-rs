@@ -1,18 +1,17 @@
 use crate::errors::*;
 use crate::types::Root;
 use crossbeam_channel::Sender;
-use log::error;
+use ethers::providers::StreamExt;
 use log::*;
 use tokio::task::JoinHandle;
-use std::net::TcpStream;
-
-use tungstenite::{stream::MaybeTlsStream, WebSocket};
+use tokio::net::TcpStream;
+use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use url::Url;
 
 /// Sequencer Feed Client
 pub struct RelayClient {
     // Socket connection to read from
-    connection: WebSocket<MaybeTlsStream<TcpStream>>,
+    connection: WebSocketStream<MaybeTlsStream<TcpStream>>,
     // For sending errors / disconnects
     connection_update: Sender<ConnectionUpdate>,
     // Sends Transactions
@@ -23,7 +22,7 @@ pub struct RelayClient {
 
 impl RelayClient {
     // Does not start the reader, only makes the websocket connection
-    pub fn new(
+    pub async fn new(
         url: Url,
         chain_id: u64,
         id: u32,
@@ -50,15 +49,8 @@ impl RelayClient {
             .body(())
             .map_err(|_| RelayError::InitialConnectionError(ConnectionError::RequestTimeOut))?;
 
-        let (socket, resp) = match tungstenite::connect(req) {
-            Ok(d) => d,
-            Err(_) => {
-                return Err(RelayError::InitialConnectionError(
-                    ConnectionError::RateLimited,
-                ))
-            }
-        }; // Panic at the start
-
+        let (socket, resp) = connect_async(req).await.unwrap();
+        
         let chain_id_resp = resp
             .headers()
             .get("arbitrum-chain-id")
@@ -84,17 +76,17 @@ impl RelayClient {
     pub fn spawn(self) -> JoinHandle<()> {
         info!("Sequencer feed reader started | Client Id: {}", self.id);
 
-        tokio::task::spawn_blocking(move || {
-            match self.run() {
+        tokio::task::spawn(async move {
+            match self.run().await {
                 Ok(_) => (),
                 Err(e) => error!("{}", e)
             }
         })
     }
 
-    pub fn run(mut self) -> Result<(), RelayError> {
+    pub async fn run(mut self) -> Result<(), RelayError> {
         loop {
-            match self.connection.read_message() {
+            match self.connection.next().await.unwrap() {
                 Ok(message) => {
                     let decoded_root: Root = match serde_json::from_slice(&message.into_data()) {
                         Ok(d) => d,
