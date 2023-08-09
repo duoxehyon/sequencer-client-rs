@@ -1,11 +1,11 @@
-use crate::errors::{RelayError, ConnectionUpdate};
+use crate::errors::{ConnectionUpdate, RelayError};
 use crate::feed_client::*;
 use crate::types::Root;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::*;
-use tokio::task::JoinHandle;
 use std::collections::HashMap;
 use std::time::SystemTime;
+use tokio::task::JoinHandle;
 use url::Url;
 
 // For maintaining the sequencer feed clients
@@ -47,7 +47,8 @@ impl RelayClients {
                 id.into(),
                 sender.clone(),
                 updates.0.clone(),
-            ).await?;
+            )
+            .await?;
 
             connections.insert(id.into(), conn.spawn());
         }
@@ -75,7 +76,7 @@ impl RelayClients {
 
         let max_clients = self.max_connections;
         let mut num_checks = 0;
-       
+
         loop {
             // Wait for 1 second before checking the connections again
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -173,7 +174,8 @@ impl RelayClients {
             id,
             self.sender.clone(),
             self.error_sender.clone(),
-        ).await?;
+        )
+        .await?;
 
         let handle = client.spawn();
         self.clients.insert(id, handle);

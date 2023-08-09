@@ -1,10 +1,10 @@
-use crate::errors::{RelayError, ConnectionUpdate};
+use crate::errors::{ConnectionUpdate, RelayError};
 use crate::types::Root;
 use crossbeam_channel::Sender;
 use ethers::providers::StreamExt;
 use log::*;
-use tokio::task::JoinHandle;
 use tokio::net::TcpStream;
+use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use url::Url;
 
@@ -57,7 +57,7 @@ impl RelayClient {
             .to_str()
             .unwrap_or_default();
 
-        if chain_id_resp.parse::<u64>().unwrap_or_default()  != chain_id {
+        if chain_id_resp.parse::<u64>().unwrap_or_default() != chain_id {
             return Err(RelayError::InvalidChainId);
         }
 
@@ -76,7 +76,7 @@ impl RelayClient {
         tokio::task::spawn(async move {
             match self.run().await {
                 Ok(_) => (),
-                Err(e) => error!("{}", e)
+                Err(e) => error!("{}", e),
             }
         })
     }
@@ -89,7 +89,7 @@ impl RelayClient {
                         Ok(d) => d,
                         Err(_) => continue,
                     };
-    
+
                     if self.sender.send(decoded_root).is_err() {
                         break; // we gracefully exit
                     }

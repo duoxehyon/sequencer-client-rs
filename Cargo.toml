@@ -8,16 +8,16 @@ lto = true
 opt-level = 3
 
 [dependencies]
-tungstenite = "0.20.0"
-tokio-tungstenite = { version = "0.20.0", features = ["native-tls"] }
-base64 = "0.21.0"
-serde_json = "1.0.96"
+tungstenite = "0.20"
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
+base64 = "0.21"
+serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-hex = "0.4.3"
-url = "2.3.1"
-crossbeam-channel = "0.5.8"
-env_logger = "0.10.0"
-log = "0.4.17"
-tokio = { version = "1.28", features = ["macros", "rt-multi-thread"] }
-ethers = "2.0.3"
-thiserror = "1.0.44"
+hex = "0.4"
+url = "2.4"
+crossbeam-channel = "0.5"
+env_logger = "0.10"
+log = "0.4"
+tokio = { version = "1.29", features = ["macros", "rt-multi-thread"] }
+ethers = "2.0"
+thiserror = "1.0"
