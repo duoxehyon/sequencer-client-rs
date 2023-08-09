@@ -31,7 +31,7 @@ pub struct RelayClients {
 
 impl RelayClients {
     // Does not start the reader, only makes the initial connections
-    pub fn new(
+    pub async fn new(
         url: &str,
         chain_id: u64,
         max_connections: u32,
@@ -50,7 +50,7 @@ impl RelayClients {
                 id.into(),
                 sender.clone(),
                 updates.0.clone(),
-            )?;
+            ).await?;
 
             connections.insert(id.into(), conn.spawn());
         }
@@ -132,7 +132,7 @@ impl RelayClients {
                             // This connection is not connected and it's been more than 70 seconds since the last connect / disconnect event
                             up_coming_connection = Some(id);
                             // Adding the connection
-                            if self.add_or_replace_client(id as u32).is_err() {
+                            if self.add_or_replace_client(id as u32).await.is_err() {
                                 last_disconnected_time = time::SystemTime::now();
                                 error!("Failed to add client");
                                 break;
@@ -152,7 +152,7 @@ impl RelayClients {
                         && max_clients > total_clients
                     {
                         // A new connection needs to be created
-                        if self.add_or_replace_client(total_clients).is_err() {
+                        if self.add_or_replace_client(total_clients).await.is_err() {
                             last_disconnected_time = time::SystemTime::now();
                             error!("Failed to add client");
                             continue;
@@ -169,14 +169,14 @@ impl RelayClients {
     }
 
     // Adds a new client connection
-    fn add_or_replace_client(&mut self, id: u32) -> Result<(), RelayError> {
+    async fn add_or_replace_client(&mut self, id: u32) -> Result<(), RelayError> {
         let client = RelayClient::new(
             self.url.clone(),
             self.chain_id,
             id,
             self.sender.clone(),
             self.error_sender.clone(),
-        )?;
+        ).await?;
 
         let handle = client.spawn();
         self.clients.insert(id, handle);

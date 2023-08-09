@@ -14,9 +14,9 @@ async fn main() {
 
     // Create a channel to receive messages from the feed client
     let (sender, receiver) = unbounded();
-
     // Create a new relay client and start background maintenance
     let relay_client = RelayClients::new("wss://arb1.arbitrum.io/feed", 42161, 20, 1, sender)
+        .await
         .expect("Failed to create relay client");
     tokio::spawn(RelayClients::start_reader(relay_client));
 
