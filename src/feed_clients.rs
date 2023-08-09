@@ -35,7 +35,7 @@ impl RelayClients {
         init_connections: u8,
         sender: Sender<Root>,
     ) -> Result<Self, RelayError> {
-        let url = Url::parse(url).map_err(|_x| RelayError::Msg("Invalid URL".to_owned()))?;
+        let url = Url::parse(url)?;
 
         let updates = unbounded();
         let mut connections: HashMap<u32, JoinHandle<()>> = HashMap::new();

@@ -9,6 +9,9 @@ pub enum RelayError {
     IO(#[from] io::Error),
 
     #[error(transparent)]
+    UrlParse(#[from] url::ParseError),
+
+    #[error(transparent)]
     HTTP(#[from] tungstenite::http::Error),
 
     #[error(transparent)]
@@ -19,6 +22,9 @@ pub enum RelayError {
 
     #[error(transparent)]
     SendError(#[from] crossbeam_channel::SendError<ConnectionUpdate>),
+
+    #[error("Invalid Url")]
+    InvalidUrl,
 
     #[error("Sequencer feed is not for the given chain id")]
     InvalidChainId,

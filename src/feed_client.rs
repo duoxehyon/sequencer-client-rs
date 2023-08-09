@@ -34,7 +34,7 @@ impl RelayClient {
         let key = tungstenite::handshake::client::generate_key();
         let host = url
             .host_str()
-            .ok_or(RelayError::Msg("Invalid URL".to_owned()))?;
+            .ok_or(RelayError::InvalidUrl)?;
 
         let req = tungstenite::handshake::client::Request::builder()
             .method("GET")
@@ -73,7 +73,7 @@ impl RelayClient {
     pub fn spawn(self) -> JoinHandle<()> {
         info!("Sequencer feed reader started | Client Id: {}", self.id);
 
-        tokio::task::spawn(async move {
+        tokio::spawn(async move {
             match self.run().await {
                 Ok(_) => (),
                 Err(e) => error!("{}", e),
