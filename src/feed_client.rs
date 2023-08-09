@@ -1,10 +1,10 @@
-use crate::errors::*;
+use crate::errors::{ConnectionUpdate, RelayError};
 use crate::types::Root;
 use crossbeam_channel::Sender;
 use ethers::providers::StreamExt;
 use log::*;
-use tokio::task::JoinHandle;
 use tokio::net::TcpStream;
+use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use url::Url;
 
@@ -34,7 +34,7 @@ impl RelayClient {
         let key = tungstenite::handshake::client::generate_key();
         let host = url
             .host_str()
-            .ok_or(RelayError::InitialConnectionError(ConnectionError::Unknown))?;
+            .ok_or(RelayError::Msg("Invalid URL".to_owned()))?;
 
         let req = tungstenite::handshake::client::Request::builder()
             .method("GET")
@@ -46,22 +46,19 @@ impl RelayClient {
             .header("Sec-WebSocket-Key", key)
             .header("Arbitrum-Feed-Client-Version", "2")
             .header("Arbitrum-Requested-Sequence-number", "0")
-            .body(())
-            .map_err(|_| RelayError::InitialConnectionError(ConnectionError::RequestTimeOut))?;
+            .body(())?;
 
-        let (socket, resp) = connect_async(req).await.unwrap();
-        
+        let (socket, resp) = connect_async(req).await?;
+
         let chain_id_resp = resp
             .headers()
             .get("arbitrum-chain-id")
-            .ok_or(RelayError::InitialConnectionError(ConnectionError::Unknown))?
+            .ok_or(RelayError::InvalidChainId)?
             .to_str()
             .unwrap_or_default();
 
         if chain_id_resp.parse::<u64>().unwrap_or_default() != chain_id {
-            return Err(RelayError::InitialConnectionError(
-                ConnectionError::InvalidChainId,
-            ));
+            return Err(RelayError::InvalidChainId);
         }
 
         Ok(Self {
@@ -79,14 +76,14 @@ impl RelayClient {
         tokio::task::spawn(async move {
             match self.run().await {
                 Ok(_) => (),
-                Err(e) => error!("{}", e)
+                Err(e) => error!("{}", e),
             }
         })
     }
 
     pub async fn run(mut self) -> Result<(), RelayError> {
-        loop {
-            match self.connection.next().await.unwrap() {
+        while let Some(msg) = self.connection.next().await {
+            match msg {
                 Ok(message) => {
                     let decoded_root: Root = match serde_json::from_slice(&message.into_data()) {
                         Ok(d) => d,
@@ -99,8 +96,7 @@ impl RelayClient {
                 }
                 Err(e) => {
                     self.connection_update
-                        .send(ConnectionUpdate::StoppedSendingFrames(self.id))
-                        .unwrap();
+                        .send(ConnectionUpdate::StoppedSendingFrames(self.id))?;
                     error!("Connection closed with error: {}", e);
                     break;
                 }

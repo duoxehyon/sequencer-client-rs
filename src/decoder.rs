@@ -41,7 +41,7 @@ impl L1IncomingMessageHeader {
         //     Err(_) => return
         // };
 
-        // let l2_tx: Transaction = match 
+        // let l2_tx: Transaction = match
         //     ethers::utils::rlp::decode(&l2_bytes[1..]) {
         //     Ok(d) => d,
         //     Err(_) => return
@@ -93,5 +93,4 @@ impl L1IncomingMessageHeader {
             data.val_at(offset + 5).ok()?,
         ))
     }
-    
 }
